@@ -20,7 +20,7 @@ set -eu
 DOWNLOAD_LOCATION=$(/usr/share/google/get_metadata_value attributes/DOWNLOAD_LOCATION)
 TERADATA_CONNECTOR_FILE=$(/usr/share/google/get_metadata_value attributes/TERADATA_CONNECTOR_FILE)
 LIB_TO_BE_ADDED=$(/usr/share/google/get_metadata_value attributes/LIB_TO_BE_ADDED)
-
+TEZ_XML_FILE=$(/usr/share/google/get_metadata_value attributes/TEZ_XML_FILE)
 
 # ------------------------------------------------------------------------------
 # Download Teradata connector on local machine
@@ -37,7 +37,7 @@ fi
 # ------------------------------------------------------------------------------
 PKG_INSTALL_STATUS=$(sudo dpkg -i "/tmp/${TERADATA_CONNECTOR_FILE}" && echo $? || echo $?)
 
-if [ $PKG_INSTALL_STATUS != 0 ]; then
+if [ ${PKG_INSTALL_STATUS} != 0 ]; then
   echo "Teradata Connector did not get installed"
   exit 1
 fi
