@@ -36,6 +36,9 @@ set -euxo pipefail
   tez_xml_file=$(/usr/share/google/get_metadata_value attributes/TEZ_XML_FILE)
   readonly tez_xml_file
 
+err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+}
 
 function execute_with_retries() {
   local -r cmd=$1
