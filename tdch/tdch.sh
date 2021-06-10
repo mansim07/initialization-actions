@@ -94,12 +94,13 @@ validate_pkg
 
 function main(){
   # Only run the installation on master nodes for Dataproc >= 2.0 
-  if [[ ${DATAPROC_VERSION} == 2.* ]]; then
-    if [[ "${role}" == 'Master' ]]; then
+  if [[ ${DATAPROC_VERSION} == 1.* ]]; then
+      install_tdch
+  else 
+      if [[ "${role}" == 'Master' ]]; then
       install_tdch
     fi
-  else 
-      install_tdch
+
   fi
 }
 
