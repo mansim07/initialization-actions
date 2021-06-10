@@ -48,7 +48,7 @@ function execute_with_retries() {
   return 1
 }
 
-function download_deb() {
+function download_deb_or_rpm() {
   download_status=$(gsutil cp "${download_location}/${td_connector_file}" /tmp &>/dev/null && echo $? || echo $?)
 
   if [ ${download_status} != 0 ]; then
@@ -79,9 +79,14 @@ exit 1
 }
 
 function install_tdch(){
-  download_deb
+  download_deb_or_rpm
 
-  pkg_install_status=$(sudo dpkg -i "/tmp/${td_connector_file}" && echo $? || echo $?)
+  if [[ "${DATAPROC_IMAGE_VERSION}" =~ .*"deb".* ]]; then
+    pkg_install_status=$(sudo dpkg -i "/tmp/${td_connector_file}" && echo $? || echo $?)
+  else
+    pkg_install_status=$(sudo rpm -ivh "/tmp/${td_connector_file}" && echo $? || echo $?)
+  fi
+  
 
   if [ ${pkg_install_status} != 0 ]; then
     echo "Teradata Connector did not get installed"
