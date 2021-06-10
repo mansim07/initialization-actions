@@ -15,54 +15,92 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-set -eu
+#   This will install TDCH library on Dataproc cluster
 
-DOWNLOAD_LOCATION=$(/usr/share/google/get_metadata_value attributes/DOWNLOAD_LOCATION)
-TERADATA_CONNECTOR_FILE=$(/usr/share/google/get_metadata_value attributes/TERADATA_CONNECTOR_FILE)
-LIB_TO_BE_ADDED=$(/usr/share/google/get_metadata_value attributes/LIB_TO_BE_ADDED)
-TEZ_XML_FILE=$(/usr/share/google/get_metadata_value attributes/TEZ_XML_FILE)
+#   As a pre-requisite, the .deb file should be available in GCS
 
-# ------------------------------------------------------------------------------
-# Download Teradata connector on local machine
-# ------------------------------------------------------------------------------
-DOWNLOAD_STATUS=$(gsutil cp "${DOWNLOAD_LOCATION}/${TERADATA_CONNECTOR_FILE}" /tmp &>/dev/null && echo $? || echo $?)
+set -euxo pipefail
 
-if [ $DOWNLOAD_STATUS != 0 ]; then
-  echo "could not download installable file ${TERADATA_CONNECTOR_FILE}"
-  exit 1
-fi
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+  readonly role
 
-# ------------------------------------------------------------------------------
-# Install the package
-# ------------------------------------------------------------------------------
-PKG_INSTALL_STATUS=$(sudo dpkg -i "/tmp/${TERADATA_CONNECTOR_FILE}" && echo $? || echo $?)
+  download_location=$(/usr/share/google/get_metadata_value attributes/DOWNLOAD_LOCATION)
+  readonly download_location
 
-if [ ${PKG_INSTALL_STATUS} != 0 ]; then
-  echo "Teradata Connector did not get installed"
-  exit 1
-fi
+  td_connector_file=$(/usr/share/google/get_metadata_value attributes/TERADATA_CONNECTOR_FILE)
+  readonly td_connector_file
 
-# ------------------------------------------------------------------------------
-# Add Teradata library path in TEZ XML file
-# ------------------------------------------------------------------------------
-# Check if library has already added
-if sudo grep -q "${LIB_TO_BE_ADDED}" "${TEZ_XML_FILE}" ; then
-  echo "library already added"
+  lib_to_be_added=$(/usr/share/google/get_metadata_value attributes/LIB_TO_BE_ADDED)
+  readonly lib_to_be_added
+
+  tez_xml_file=$(/usr/share/google/get_metadata_value attributes/TEZ_XML_FILE)
+  readonly tez_xml_file
+
+
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function download_deb() {
+  download_status=$(gsutil cp "${download_location}/${td_connector_file}" /tmp &>/dev/null && echo $? || echo $?)
+
+  if [ ${download_status} != 0 ]; then
+    echo "Failed to download the ${td_connector_file}"
+    exit 1
+  fi
+
+}
+
+function validate_pkg(){
+ if sudo grep -q "${lib_to_be_added}" "${tez_xml_file}" ; then
+  echo "Library is already present in tez.xml file"
   exit
-fi
+ fi
 
-# add library in tez-site.xml
-FILE_ARRAY=( "file:/usr/local/share/google/dataproc/lib"
+file_array=( "file:/usr/local/share/google/dataproc/lib"
         "file:/usr/lib/tez/lib"
         "file:/usr/lib/tez" )
-for this_file in "${FILE_ARRAY[@]}" ; do
-    if sudo grep -q "$this_file" "${TEZ_XML_FILE}"; then
-      sudo sed -i "s@${this_file}@&,${LIB_TO_BE_ADDED}@" "${TEZ_XML_FILE}"
+for this_file in "${file_array[@]}" ; do
+    if sudo grep -q "$this_file" "${tez_xml_file}"; then
+      sudo sed -i "s@${this_file}@&,${lib_to_be_added}@" "${tez_xml_file}"
       exit
     fi
 done
 
-# if following line is executed that means library could not be added in the tez-site.xml
-echo "Library could not be updated"
+echo "Library update failed!" 
 exit 1
+}
 
+function install_tdch(){
+  download_deb
+
+  pkg_install_status=$(sudo dpkg -i "/tmp/${td_connector_file}" && echo $? || echo $?)
+
+  if [ ${pkg_install_status} != 0 ]; then
+    echo "Teradata Connector did not get installed"
+    exit 1
+  fi
+
+validate_pkg
+
+}
+
+function main(){
+  # Only run the installation on master nodes for Dataproc >= 2.0 
+  if [[ ${DATAPROC_VERSION} >= 2.* ]]; then
+    if [[ "${role}" == 'Master' ]]; then
+      install_tdch
+    fi
+  else 
+      install_tdch
+  fi
+}
+
+main
