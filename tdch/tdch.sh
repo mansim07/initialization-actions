@@ -17,7 +17,7 @@
 
 #   This will install TDCH library on Dataproc cluster
 
-#   As a pre-requisite, the .deb file should be available in GCS
+#   As a pre-requisite, the .deb or .rpm file should be available in GCS
 
 set -euxo pipefail
 
@@ -52,21 +52,24 @@ function execute_with_retries() {
 }
 
 function download_deb_or_rpm() {
+  #Download the teradata rpm or deb file from GCS to local
   download_status=$(gsutil cp "${download_location}/${td_connector_file}" /tmp &>/dev/null && echo $? || echo $?)
 
-  if [ ${download_status} != 0 ]; then
-    echo "Failed to download the ${td_connector_file}"
+  if [ "${download_status}" != 0 ]; then
+    err "Failed to download the ${td_connector_file}"
     exit 1
   fi
 
 }
 
 function validate_pkg(){
+
  if sudo grep -q "${lib_to_be_added}" "${tez_xml_file}" ; then
-  echo "Library is already present in tez.xml file"
+  err "Library is already present in tez.xml file"
   exit
  fi
 
+declare -a file_array
 file_array=( "file:/usr/local/share/google/dataproc/lib"
         "file:/usr/lib/tez/lib"
         "file:/usr/lib/tez" )
@@ -77,7 +80,7 @@ for this_file in "${file_array[@]}" ; do
     fi
 done
 
-echo "Library update failed!" 
+err "Library update failed!" 
 exit 1
 }
 
@@ -91,8 +94,8 @@ function install_tdch(){
   fi
   
 
-  if [ ${pkg_install_status} != 0 ]; then
-    echo "Teradata Connector did not get installed"
+  if [ "${pkg_install_status}" != 0 ]; then
+    err "Teradata Connector did not get installed"
     exit 1
   fi
 
