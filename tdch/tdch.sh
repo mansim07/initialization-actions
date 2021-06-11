@@ -55,7 +55,7 @@ function download_deb_or_rpm() {
   #Download the teradata rpm or deb file from GCS to local
   download_status=$(gsutil cp "${download_location}/${td_connector_file}" /tmp &>/dev/null && echo $? || echo $?)
 
-  if [ "${download_status}" != 0 ]; then
+  if [ ${download_status} != 0 ]; then
     err "Failed to download the ${td_connector_file}"
     exit 1
   fi
@@ -94,7 +94,7 @@ function install_tdch(){
   fi
   
 
-  if [ "${pkg_install_status}" != 0 ]; then
+  if [ ${pkg_install_status} != 0 ]; then
     err "Teradata Connector did not get installed"
     exit 1
   fi
