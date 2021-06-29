@@ -30,11 +30,13 @@ set -euxo pipefail
   td_connector_file=$(/usr/share/google/get_metadata_value attributes/TERADATA_CONNECTOR_FILE)
   readonly td_connector_file
 
+  if [[ ${DATAPROC_VERSION} == 1.* ]]; then
   lib_to_be_added=$(/usr/share/google/get_metadata_value attributes/LIB_TO_BE_ADDED)
   readonly lib_to_be_added
 
   tez_xml_file=$(/usr/share/google/get_metadata_value attributes/TEZ_XML_FILE)
   readonly tez_xml_file
+  fi
 
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
@@ -99,7 +101,7 @@ function install_tdch(){
     exit 1
   fi
 
-validate_pkg
+
 
 }
 
@@ -107,6 +109,7 @@ function main(){
   # Only run the installation on master nodes for Dataproc >= 2.0 
   if [[ ${DATAPROC_VERSION} == 1.* ]]; then
       install_tdch
+      validate_pkg
   else 
       if [[ "${role}" == 'Master' ]]; then
       install_tdch
